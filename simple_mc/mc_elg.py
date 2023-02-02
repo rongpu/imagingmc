@@ -1,4 +1,4 @@
-# It takes ~1 hour for repeats=64 and n_randoms_catalogs=32, which simulates 32*64*2500=5M per sq. deg. MC "objects".
+# It takes ~1 hour on 1 Perlmutter node for repeats=64 and n_randoms_catalogs=32, which simulates 32*64*2500=5M per sq. deg. MC "objects".
 
 from __future__ import division, print_function
 import sys, os, glob, time, warnings, gc
