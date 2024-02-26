@@ -50,7 +50,9 @@ from desiutil import brick
 tmp = brick.Bricks(bricksize=0.25)
 cat['brickid'] = tmp.brickid(cat['ra'], cat['dec'])
 
-cat.write('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/truth/cosmos_truth_clean.fits', overwrite=True)
+cat.write('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/truth/cosmos_truth_clean.fits', overwrite=False)
+
+########################################################################################################################################
 
 subs = Table(fitsio.read('/global/cfs/cdirs/desi/users/rongpu/data/deep_field_subsets/catalogs/cosmos_subsets_rongpu_dr10.fits'))
 brickid_list = np.unique(subs['brickid'])
@@ -59,4 +61,4 @@ mask = np.in1d(cat['brickid'], subs['brickid'])
 cat = cat[mask]
 print(len(cat), np.sum(mask)/len(mask))
 
-cat.write('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/subsets/cosmos_truth_clean.fits', overwrite=True)
+cat.write('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/truth/cosmos_truth_clean_in_subsets.fits', overwrite=False)

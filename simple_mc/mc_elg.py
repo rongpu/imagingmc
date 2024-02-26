@@ -43,7 +43,7 @@ if not os.path.isdir(os.path.dirname(tmp_dir)):
 
 get_nea = {}
 for band in ['g', 'r', 'z']:
-    nea_path = '/global/cfs/cdirs/desi/users/rongpu/imaging_mc/nea/nea_vs_fwhm_{}_1024.fits'.format(band)
+    nea_path = '/dvs_ro/cfs/cdirs/desi/users/rongpu/imaging_mc/nea/nea_vs_fwhm_{}_1024.fits'.format(band)
     nea = Table(fitsio.read(nea_path))
     nea_arr = np.array(nea['nea']).T
     hdr = fitsio.read_header(nea_path, ext=1)
@@ -148,7 +148,7 @@ def elgsim(foo):
 
 time_start = time.time()
 
-truth = Table(fitsio.read('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/truth/cosmos_truth_clean.fits'))
+truth = Table(fitsio.read('/dvs_ro/cfs/cdirs/desi/users/rongpu/imaging_mc/truth/cosmos_truth_clean.fits'))
 print('truth', len(truth))
 
 # extinction-corrected fluxes
@@ -174,8 +174,8 @@ truth = truth[['flux_g_ec', 'flux_r_ec', 'flux_z_ec', 'fiberflux_g_ec', 'shape_r
 
 columns = ['RA', 'DEC', 'NOBS_G', 'NOBS_R', 'NOBS_Z', 'PSFSIZE_G', 'PSFSIZE_R', 'PSFSIZE_Z', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z', 'EBV', 'PHOTSYS']
 
-# randoms_paths = sorted(glob.glob('/global/cfs/cdirs/desi/target/catalogs/dr9/0.49.0/randoms/resolve/randoms-[0-9]*.fits'))
-randoms_paths = sorted(glob.glob('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/trimmed_randoms/randoms-[0-9]*-trim.fits'))
+# randoms_paths = sorted(glob.glob('/dvs_ro/cfs/cdirs/desi/target/catalogs/dr9/0.49.0/randoms/resolve/randoms-[0-9]*.fits'))
+randoms_paths = sorted(glob.glob('/dvs_ro/cfs/cdirs/desi/users/rongpu/imaging_mc/trimmed_randoms/randoms-[0-9]*-trim.fits'))
 randoms_paths = randoms_paths[:n_randoms_catalogs]
 
 print('Running MC...')
@@ -188,7 +188,7 @@ for randoms_path in randoms_paths:
         continue
 
     cat = Table(fitsio.read(randoms_path, columns=columns))
-    cat1 = Table(fitsio.read('/global/cfs/cdirs/desi/users/rongpu/desi_mask/randoms/elgmask_v1/'+os.path.basename(randoms_path).replace('-trim.fits', '-elgmask_v1.fits')))
+    cat1 = Table(fitsio.read('/dvs_ro/cfs/cdirs/desi/users/rongpu/desi_mask/randoms/elgmask_v1/'+os.path.basename(randoms_path).replace('-trim.fits', '-elgmask_v1.fits')))
     cat = hstack([cat, cat1])
     min_nobs = 1
     mask = (cat['NOBS_G']>=min_nobs) & (cat['NOBS_R']>=min_nobs) & (cat['NOBS_Z']>=min_nobs)
@@ -198,7 +198,7 @@ for randoms_path in randoms_paths:
     print(len(cat))
     mask = cat['elg_mask']==0
     cat = cat[mask]
-    print(len(cat))
+    print('ELG mask', len(cat))
 
     cat.rename_columns(cat.colnames, [ii.lower() for ii in cat.colnames])
 

@@ -1,6 +1,6 @@
 # Simulate the errors in SFD using DESI EBV
 # It takes ~1 hour on 1 Perlmutter node for repeats=64 and n_randoms_catalogs=32, which simulates 32*64*2500=5M per sq. deg. MC "objects".
-# WORK IN PROGRESS
+# Take EBV_DESI as the true EBV and simulate DESI target selection using the EBV_SFD
 
 from __future__ import division, print_function
 import sys, os, glob, time, warnings, gc
@@ -101,6 +101,7 @@ def quicksim(truth, cat):
 
     sim = Table()
 
+    # the fluxes are the observed flux without extinction correction
     fiberflux_bands = ['g']
     for band in fiberflux_bands:
         fiberflux_ratio = truth['fiberflux_{}_ec'.format(band)] / truth['flux_{}_ec'.format(band)]
@@ -110,6 +111,7 @@ def quicksim(truth, cat):
     for band in ['g', 'r', 'z']:
         sim['flux_'+band] = np.array(truth['flux_{}_ec'.format(band)] / 10**(0.4*ext_coeffs[band]*cat['ebv_desi']) + noise[band] * flux_err[band], dtype='float32')
 
+    # the magnitudes are the observed magnitudes after the SFD extinction correction
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         for band in ['g', 'r', 'z']:
@@ -231,8 +233,8 @@ for randoms_path in randoms_paths:
     mc['ra'] = cat['ra']
     mc['dec'] = cat['dec']
     mc['photsys'] = cat['photsys']
-    mc['elglop'] = elglop_count
-    mc['elgvlo'] = elgvlo_count
+    mc['elglop'] = np.array(elglop_count, dtype='int32')
+    mc['elgvlo'] = np.array(elgvlo_count, dtype='int32')
     mc.write(output_path, overwrite=True)
 
 print('MC done', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
