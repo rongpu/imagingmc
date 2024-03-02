@@ -1,6 +1,4 @@
-# Simulate the errors in SFD using DESI EBV
-# It takes ~1 hour on 1 Perlmutter node for repeats=64 and n_randoms_catalogs=32, which simulates 32*64*2500=5M per sq. deg. MC "objects".
-# Take EBV_DESI as the true EBV and simulate DESI target selection using the EBV_SFD
+# Keep track of the number of truth objects (both the total number and the accepted number)
 
 from __future__ import division, print_function
 import sys, os, glob, time, warnings, gc
@@ -19,19 +17,20 @@ from select_desi_targets import select_elg_simplified
 
 time_start = time.time()
 
-n_processes = 100
+n_processes = 64
 repeats = n_processes * 4  # number of MC sims for each random point
-n_randoms_catalogs = 32
+n_randoms_catalogs = 4
 
 apply_source_detection = False
 use_desi_ebv = True
-count_truth = False
+count_truth = True
 
 debug = True
 
-hpx_output_dir = '/global/cfs/cdirs/desi/users/rongpu/imaging_mc/mc/20240227'
-hpx_output_fn = 'mc_elg_desi_ebv'
-tmp_dir = '/pscratch/sd/r/rongpu/imaging_mc/tmp0/'
+nside = 128  # NSIDE of the output healpix map
+
+output_fn = '/global/cfs/cdirs/desi/users/rongpu/imaging_mc/mc/20240227/count_truth/mc_elg_randoms_elgmask_v1_desi_ebv_healpix_{}.fits'.format(nside)
+tmp_dir = '/pscratch/sd/r/rongpu/imaging_mc/tmp0_count/'
 
 # from https://www.legacysurvey.org/dr9/catalogs/#galactic-extinction-coefficients
 ext_coeffs = {'u': 3.995, 'g': 3.214, 'r': 2.165, 'i': 1.592, 'z': 1.211, 'y': 1.064}
@@ -246,23 +245,24 @@ for randoms_path in randoms_paths:
     cat.rename_column('EBV', 'EBV_SFD')
     print_debug('done reading randoms', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
 
-    if use_desi_ebv:
-        cat1 = Table(fitsio.read(randoms_path.replace('-trim.fits', '-desi_ebv.fits')))
-        cat = hstack([cat, cat1])
-        mask = cat['EBV_DESI']!=-99.
-        cat = cat[mask]
-        print('Added DESI EBV', len(cat))
-        print_debug('done adding DESI EBV', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
-
     min_nobs = 1
     mask = (cat['NOBS_G']>=min_nobs) & (cat['NOBS_R']>=min_nobs) & (cat['NOBS_Z']>=min_nobs)
     mask &= (cat['PSFDEPTH_G']>0) & (cat['PSFDEPTH_R']>0) & (cat['PSFDEPTH_Z']>0)
     mask &= (cat['PSFSIZE_G']>0) & (cat['PSFSIZE_R']>0) & (cat['PSFSIZE_Z']>0)
     cat = cat[mask]
-    print('Basic quality cuts', len(cat))
+    print(len(cat))
     mask = cat['elg_mask']==0
     cat = cat[mask]
     print('ELG mask', len(cat))
+
+    if use_desi_ebv:
+        print_debug('adding DESI EBV', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
+        cat['HPXPIXEL'] = hp.ang2pix(ebv_nside, cat['RA'], cat['DEC'], nest=False, lonlat=True)
+        # mask = np.in1d(cat['HPXPIXEL'], ebv_map['HPXPIXEL'])
+        # cat = cat[mask]
+        cat = join(cat, ebv_map[['HPXPIXEL', 'EBV_DESI']], keys='HPXPIXEL', join_type='inner')
+        print_debug('done adding DESI EBV', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
+        print('Added EBV DESI', len(cat))
 
     ####################### Remove shallow/bad regions #######################
     with warnings.catch_warnings():
@@ -297,7 +297,7 @@ for randoms_path in randoms_paths:
 
     cat.rename_columns(cat.colnames, [ii.lower() for ii in cat.colnames])
 
-    elglop_count, elgvlo_count = np.zeros(len(cat), dtype='int16'), np.zeros(len(cat), dtype='int16')
+    elglop_count, elgvlo_count = np.zeros(len(cat), dtype=int), np.zeros(len(cat), dtype=int)
     counter = repeats
     while counter>0:
         with Pool(processes=n_processes) as pool:
@@ -315,12 +315,12 @@ for randoms_path in randoms_paths:
                 tcount['total'] = tmp['total_1'] + tmp['total_2']
                 tcount['elglop_sel'] = tmp['elglop_sel_1'] + tmp['elglop_sel_2']
                 tcount['elgvlo_sel'] = tmp['elgvlo_sel_1'] + tmp['elgvlo_sel_2']
-            res = np.array(res_stack, dtype='int16')
+            res = np.array(res_stack, dtype=int)
             print_debug('truth counting done', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
             del tmp, res_stack
             gc.collect()
         else:
-            res = np.array(res, dtype='int16')
+            res = np.array(res, dtype=int)
         elglop_count += np.sum(res[:, 0], axis=0)
         elgvlo_count += np.sum(res[:, 1], axis=0)
         print_debug('ELG counting done', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
@@ -331,11 +331,11 @@ for randoms_path in randoms_paths:
     mc['ra'] = cat['ra']
     mc['dec'] = cat['dec']
     mc['photsys'] = cat['photsys']
-    mc['elglop'] = np.array(elglop_count, dtype='int16')
-    mc['elgvlo'] = np.array(elgvlo_count, dtype='int16')
+    mc['elglop'] = np.array(elglop_count, dtype='int32')
+    mc['elgvlo'] = np.array(elgvlo_count, dtype='int32')
     mc.write(output_path, overwrite=True)
 
-tcount_path = os.path.join(tmp_dir, 'mc_elg_'+os.path.basename(randoms_path).replace('-trim.fits', '-elgmask_v1-tcount.fits'))
+tcount_path = output_fn.replace('_healpix_128.fits', '-tcount.fits')
 if count_truth:
     tcount.write(tcount_path, overwrite=True)
 
@@ -378,29 +378,24 @@ mc = vstack(res)
 print('MC catalogs loaded', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
 
 print('Computing healpix map...')
+pix_allobj = hp.pixelfunc.ang2pix(nside, mc['ra'], mc['dec'], nest=False, lonlat=True)
+pix_unique, pix_count = np.unique(pix_allobj, return_counts=True)
+pixcnts = pix_count.copy()
+pixcnts = np.insert(pixcnts, 0, 0)
+pixcnts = np.cumsum(pixcnts)
+pixorder = np.argsort(pix_allobj)
+# split among the processors
+pix_idx_split = np.array_split(np.arange(len(pix_unique)), n_processes)
+# start multiple worker processes
+with Pool(processes=n_processes) as pool:
+    res = pool.map(healpix_stats, pix_idx_split)
+hp_table = vstack(res)
+hp_table.sort('HPXPIXEL')
+hp_table['n_randoms'] = pix_count
 
-for nside in [128, 256, 512]:  # NSIDE of the output healpix map
-    print('NSIDE', nside)
-    output_path = os.path.join(hpx_output_dir, hpx_output_fn+'_{}.fits'.format(nside))
-
-    pix_allobj = hp.pixelfunc.ang2pix(nside, mc['ra'], mc['dec'], nest=False, lonlat=True)
-    pix_unique, pix_count = np.unique(pix_allobj, return_counts=True)
-    pixcnts = pix_count.copy()
-    pixcnts = np.insert(pixcnts, 0, 0)
-    pixcnts = np.cumsum(pixcnts)
-    pixorder = np.argsort(pix_allobj)
-    # split among the processors
-    pix_idx_split = np.array_split(np.arange(len(pix_unique)), n_processes)
-    # start multiple worker processes
-    with Pool(processes=n_processes) as pool:
-        res = pool.map(healpix_stats, pix_idx_split)
-    hp_table = vstack(res)
-    hp_table.sort('HPXPIXEL')
-    hp_table['n_randoms'] = pix_count
-
-    if not os.path.isdir(os.path.dirname(hpx_output_fn)):
-        os.makedirs(os.path.dirname(hpx_output_fn))
-    hp_table.write(hpx_output_fn, overwrite=True)
+if not os.path.isdir(os.path.dirname(output_fn)):
+    os.makedirs(os.path.dirname(output_fn))
+hp_table.write(output_fn, overwrite=True)
 
 print('All done!', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
 
