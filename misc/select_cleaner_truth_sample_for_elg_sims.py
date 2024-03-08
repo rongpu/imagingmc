@@ -1,4 +1,6 @@
 # Remove objects that have large sky residuals or are blended
+# Point source cuts are designed for ELGs and are not be optimal for other tracers
+
 from __future__ import division, print_function
 import sys, os, glob, time, warnings, gc
 import numpy as np

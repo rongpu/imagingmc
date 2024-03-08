@@ -19,17 +19,17 @@ from select_desi_targets import select_elg_simplified
 time_start = time.time()
 
 n_processes = 100
-repeats = n_processes * 4  # number of MC sims for each random point
-n_randoms_catalogs = 32
+repeats = n_processes * 32  # number of MC sims for each random point
+n_randoms_catalogs = 1
 
 apply_source_detection = False
-use_desi_ebv = True
+use_desi_ebv = False
 count_truth = False
 
 debug = True
 
-hpx_output_dir = '/global/cfs/cdirs/desi/users/rongpu/imaging_mc/mc/20240227'
-hpx_output_fn = 'mc_elg_desi_ebv'
+hpx_output_dir = '/global/cfs/cdirs/desi/users/rongpu/imaging_mc/mc/20240227-no_desi_ebv/test'
+hpx_output_fn = 'mc_elg_no_desi_ebv-32-1'
 tmp_dir = '/pscratch/sd/r/rongpu/imaging_mc/tmp0/'
 
 # from https://www.legacysurvey.org/dr9/catalogs/#galactic-extinction-coefficients
@@ -228,8 +228,8 @@ if count_truth:
     tcount = truth[['id']].copy()  # truth count
     tcount['total'], tcount['elglop_sel'], tcount['elgvlo_sel'] = np.zeros((3, len(tcount)), dtype='int32')
 
-for randoms_path in randoms_paths:
-    print(randoms_path)
+for jj, randoms_path in enumerate(randoms_paths):
+    print('{}/{}'.format(jj, len(randoms_paths)), randoms_path)
 
     if not os.path.isdir(os.path.dirname(tmp_dir)):
         os.makedirs(os.path.dirname(tmp_dir))
@@ -269,12 +269,13 @@ for randoms_path in randoms_paths:
         cat['galdepth_gmag_ebv'] = -2.5*(np.log10((5/np.sqrt(cat['GALDEPTH_G'])))-9) - 3.214*cat['EBV_SFD']
         cat['galdepth_rmag_ebv'] = -2.5*(np.log10((5/np.sqrt(cat['GALDEPTH_R'])))-9) - 2.165*cat['EBV_SFD']
         cat['galdepth_zmag_ebv'] = -2.5*(np.log10((5/np.sqrt(cat['GALDEPTH_Z'])))-9) - 1.211*cat['EBV_SFD']
-    # Remove Delta EBV outliers
-    mask = cat['EBV_DESI'] - cat['EBV_SFD'] > -0.05
-    mask &= cat['EBV_DESI'] - cat['EBV_SFD'] < 0.05
-    print('Remove Delta EBV outliers', np.sum(mask)/len(mask))
-    mask &= cat['EBV_SFD'] < 0.15
+    mask = cat['EBV_SFD'] < 0.15
     print('Remove EBV outliers', np.sum(mask)/len(mask))
+    # Remove Delta EBV outliers
+    if use_desi_ebv:
+        mask &= cat['EBV_DESI'] - cat['EBV_SFD'] > -0.05
+        mask &= cat['EBV_DESI'] - cat['EBV_SFD'] < 0.05
+        print('Remove Delta EBV outliers', np.sum(mask)/len(mask))
     mask &= cat['PSFSIZE_G'] < 2.4
     print('Remove PSFSIZE outliers', np.sum(mask)/len(mask))
     mask &= cat['PSFSIZE_R'] < 2.3
@@ -300,7 +301,7 @@ for randoms_path in randoms_paths:
     counter = repeats
     while counter>0:
         with Pool(processes=n_processes) as pool:
-            print_debug('running the sims', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
+            print_debug('{}/{} running the sims'.format(repeats-counter, repeats), time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
             res = pool.map(elgsim, np.zeros(np.minimum(counter, n_processes)))
             print_debug('sims done', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
         counter = np.maximum(counter-n_processes, 0)
@@ -380,7 +381,6 @@ print('Computing healpix map...')
 
 for nside in [128, 256, 512]:  # NSIDE of the output healpix map
     print('NSIDE', nside)
-    output_path = os.path.join(hpx_output_dir, hpx_output_fn+'_{}.fits'.format(nside))
 
     pix_allobj = hp.pixelfunc.ang2pix(nside, mc['ra'], mc['dec'], nest=False, lonlat=True)
     pix_unique, pix_count = np.unique(pix_allobj, return_counts=True)
@@ -397,9 +397,10 @@ for nside in [128, 256, 512]:  # NSIDE of the output healpix map
     hp_table.sort('HPXPIXEL')
     hp_table['n_randoms'] = pix_count
 
-    if not os.path.isdir(os.path.dirname(hpx_output_fn)):
-        os.makedirs(os.path.dirname(hpx_output_fn))
-    hp_table.write(hpx_output_fn, overwrite=True)
+    output_path = os.path.join(hpx_output_dir, hpx_output_fn+'_{}.fits'.format(nside))
+    if not os.path.isdir(os.path.dirname(output_path)):
+        os.makedirs(os.path.dirname(output_path))
+    hp_table.write(output_path, overwrite=True)
 
 print('All done!', time.strftime("%H:%M:%S", time.gmtime(time.time() - time_start)))
 
