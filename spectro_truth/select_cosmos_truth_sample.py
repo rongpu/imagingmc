@@ -55,6 +55,7 @@ print(np.sum(mask), np.sum(mask)/len(mask))
 cat = cat[mask]
 
 mask = cat['gfibermag']<24.5
+mask &= cat['gfibermag']>19.5
 mask &= (cat['gmag']-cat['rmag'])<0.9
 mask &= (cat['gmag']-cat['rmag'])<1.32-0.7*(cat['rmag']-cat['zmag'])
 print(np.sum(mask), np.sum(mask)/len(mask))
@@ -93,6 +94,7 @@ print(np.sum(mask), np.sum(mask)/len(mask))
 hsc = hsc[mask]
 
 mask = hsc['gfibermag']<24.55
+mask &= hsc['gfibermag']>19.5
 mask &= (hsc['gmag']-hsc['rmag'])<0.8
 mask &= (hsc['gmag']-hsc['rmag'])<1.22-0.7*(hsc['rmag']-hsc['zmag'])
 print(np.sum(mask), np.sum(mask)/len(mask))
@@ -100,15 +102,20 @@ hsc = hsc[mask]
 
 ######################################################## Combine the two catalogs ########################################################
 
+hsc.rename_column('object_id', 'hsc_id')
+
 # remove duplicates in the combined catalog
 # Remove any HSC target that is within 1 arcsec of a DECam target
 idx1, idx2, d2d, d_ra, d_dec = match_coord(cat['ra'], cat['dec'], hsc['ra'], hsc['dec'], search_radius=1., plot_q=True, keep_all_pairs=True)
-mask = ~np.in1d(np.arange(len(hsc)), idx2)
-print(np.sum(mask)/len(mask))
-hsc = hsc[mask]
+not_duplicate = ~np.in1d(np.arange(len(hsc)), idx2)
+print(np.sum(not_duplicate)/len(not_duplicate))
+hsc['is_target'] = not_duplicate.copy()
 
-hsc.rename_column('object_id', 'hsc_id')
+cat.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_targets-decam.fits')
+hsc.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_targets-hsc.fits')
+
+hsc = hsc[not_duplicate]
 
 tt = vstack([cat[['ra', 'dec', 'decam_id']], hsc[['ra', 'dec', 'hsc_id']]]).filled(-99)
-tt.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/cosmos_spectro_truth_targets.fits', overwrite=False)
+tt.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_targets.fits', overwrite=False)
 
