@@ -14,10 +14,11 @@ from match_coord import match_coord
 ######################################################## DECam ########################################################
 
 cat = Table(fitsio.read('/global/cfs/cdirs/cosmo/work/legacysurvey/dr10-deep/cosmos/catalogs/cosmos.fits'))
-elgmask = Table(fitsio.read('/global/cfs/cdirs/cosmo/work/legacysurvey/dr10-deep/cosmos/catalogs/cosmos_elgmask_v1.fits.gz'))
-cat = hstack([cat, elgmask], join_type='exact')
 cat['decam_id'] = np.arange(len(cat))
 print(len(cat))
+
+elgmask = Table(fitsio.read('/global/cfs/cdirs/cosmo/work/legacysurvey/dr10-deep/cosmos/catalogs/cosmos_elgmask_v1.fits.gz'))
+cat = hstack([cat, elgmask], join_type='exact')
 
 # Depth cuts
 with warnings.catch_warnings():

@@ -23,6 +23,7 @@ print(np.sum(mask)/len(mask))
 mask &= (cat['z_sky']>-0.006) & (cat['z_sky']<0.006)
 print(np.sum(mask)/len(mask))
 mask_skyres = mask.copy()
+cat['bad_sky'] = ~mask_skyres
 
 # Remove blended objects
 # fracflux<-0.01 objects are all close blends
@@ -33,6 +34,7 @@ print(np.sum(mask)/len(mask))
 mask &= (cat['fracflux_z']>-0.01) & (cat['fracflux_z']<0.5)
 print(np.sum(mask)/len(mask))
 mask_fracflux = mask.copy()
+cat['blended'] = ~mask_fracflux
 
 mask_good = mask_skyres & mask_fracflux
 print(np.sum(mask_good)/len(mask_good))
@@ -67,11 +69,12 @@ mask &= (cat_psf['gmag']-cat_psf['rmag'])>1.2*(cat_psf['rmag']-cat_psf['zmag'])+
 print('Tractor and HSC point sources:', np.sum(mask))
 cat_psf = cat_psf[mask]
 
-mask_good &= ~np.in1d(cat['id'], cat_psf['id'])
+cat['hsc_psf'] = np.in1d(cat['id'], cat_psf['id'])
+mask_good &= ~cat['hsc_psf'].copy()
 print(np.sum(mask_good)/len(mask_good))
 
 ###############################################################################################################
 
-tt = Table()
-tt['clean'] = mask_good.copy()
+cat['clean'] = mask_good.copy()
+tt = cat[['decam_id', 'bad_sky', 'blended', 'hsc_psf', 'clean']]
 tt.write('/global/cfs/cdirs/desi/users/rongpu/imaging_mc/truth/cosmos_truth_cleaner.fits.gz', overwrite=False)

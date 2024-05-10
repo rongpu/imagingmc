@@ -10,6 +10,7 @@ import healpy as hp
 
 
 cat = Table(fitsio.read('/global/cfs/cdirs/cosmo/work/legacysurvey/dr10-deep/cosmos/catalogs/cosmos.fits'))
+cat['decam_id'] = np.arange(len(cat))
 print(len(cat))
 
 cat1 = Table(fitsio.read('/global/cfs/cdirs/cosmo/work/legacysurvey/dr10-deep/cosmos/catalogs/cosmos_apflux_blobresid.fits'))
