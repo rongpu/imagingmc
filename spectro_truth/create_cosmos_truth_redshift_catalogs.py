@@ -1,5 +1,3 @@
-# Assemble DESI redshifts in COSMOS and create the ELG truth sample
-
 from __future__ import division, print_function
 import sys, os, glob, time, warnings, gc
 import numpy as np
@@ -72,16 +70,16 @@ parent['ORIG_ROW'] = np.arange(len(parent))
 cat = join(cat, parent[['ORIG_ROW', 'decam_id', 'hsc_id']], keys='ORIG_ROW', join_type='inner')
 print(len(cat))
 
-cat.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_sample.fits', overwrite=True)
+cat.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_redshift_catalog.fits', overwrite=True)
 
 #################################### DECam catalog ####################################
 
 decam = Table(fitsio.read('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_targets-decam.fits'))
 decam = join(cat, decam, keys='decam_id', join_type='inner')
 print(len(decam))
-decam.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_sample-decam.fits', overwrite=True)
+decam.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_redshift_catalog-decam.fits', overwrite=True)
 
-#################################### DECam catalog ####################################
+#################################### HSC catalog ####################################
 
 tt = Table(fitsio.read('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_targets-hsc.fits'))
 mask = cat['hsc_id']!=-99
@@ -96,15 +94,26 @@ print(len(cat1))
 sys.path.append(os.path.expanduser('~/git/Python/user_modules/'))
 from match_coord import match_coord
 
-mask = cat['hsc_id']!=-99
-cat2 = cat[~mask].copy()
+mask = cat['hsc_id']==-99
+cat2 = cat[mask].copy()
 idx1, idx2, d2d, d_ra, d_dec = match_coord(cat2['TARGET_RA'], cat2['TARGET_DEC'], tt['ra'], tt['dec'], search_radius=0.5, plot_q=True, keep_all_pairs=False)
 cat2 = cat2[idx1]
 cat2['hsc_id'] = tt['hsc_id'][idx2]
+cat2 = join(cat2, tt, keys='hsc_id', join_type='inner')
 
 hsc = vstack([cat1, cat2])
 print(len(hsc), len(np.unique(hsc['hsc_id'])), len(hsc)-len(np.unique(hsc['hsc_id'])))
 assert len(hsc)==len(np.unique(hsc['hsc_id']))
 
-hsc.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_sample-hsc.fits', overwrite=True)
+sys.path.append(os.path.expanduser('~/git/Python/user_modules/'))
+from user_common import poly_fit_nd, poly_val_nd
+
+X = np.column_stack([hsc['gmag']-hsc['rmag'], hsc['rmag']-hsc['imag'], hsc['imag']-hsc['zmag'], hsc['zmag']-hsc['ymag'], hsc['gmag']])
+
+tmp = np.load('/global/u2/r/rongpu/notebooks/imaging_mc/spectroscopic_truth/hsc_decam_transformation/hsc_transform.npz')
+coeffs_gr, powers_arr_gr, coeffs_rz, powers_arr_rz = tmp['arr_0'], tmp['arr_1'], tmp['arr_2'], tmp['arr_3']
+hsc['g-r_decam'] = poly_val_nd(X, coeffs_gr, powers_arr_gr)
+hsc['r-z_decam'] = poly_val_nd(X, coeffs_rz, powers_arr_rz)
+
+hsc.write('/global/cfs/cdirs/desicollab/users/rongpu/imaging_mc/spectro_truth/cosmos_spectro_truth_redshift_catalog-hsc.fits', overwrite=True)
 
