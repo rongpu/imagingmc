@@ -140,3 +140,34 @@ def select_elg_simplified(cat):
         mask_elglop &= gmag - rmag < -1.2*(rmag - zmag) + 1.3
 
     return mask_elglop, mask_elgvlo
+
+
+def select_elglop_simplified(cat):
+
+    gmag = cat['gmag']
+    rmag = cat['rmag']
+    zmag = cat['zmag']
+    gfibermag = cat['gfibermag']
+
+    mask_quality = np.isfinite(gmag) & np.isfinite(rmag) & np.isfinite(zmag) & np.isfinite(gfibermag)
+
+    mask_elglop = mask_quality.copy()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        mask_elglop &= gmag > 20                       # bright cut.
+        mask_elglop &= rmag - zmag > 0.15                  # blue cut.
+        mask_elglop &= gfibermag < 24.1  # faint cut.
+        mask_elglop &= gmag - rmag < 0.5*(rmag - zmag) + 0.1  # remove stars, low-z galaxies.
+
+        # mask_elgvlo = mask_elglop.copy()
+
+        # # ADM low-priority OII flux cut.
+        # mask_elgvlo &= gmag - rmag < -1.2*(rmag - zmag) + 1.6
+        # mask_elgvlo &= gmag - rmag >= -1.2*(rmag - zmag) + 1.3
+
+        # ADM high-priority OII flux cut.
+        mask_elglop &= gmag - rmag < -1.2*(rmag - zmag) + 1.3
+
+    return mask_elglop

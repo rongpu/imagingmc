@@ -110,6 +110,7 @@ from user_common import poly_fit_nd, poly_val_nd
 
 X = np.column_stack([hsc['gmag']-hsc['rmag'], hsc['rmag']-hsc['imag'], hsc['imag']-hsc['zmag'], hsc['zmag']-hsc['ymag'], hsc['gmag']])
 
+# From imaging_mc/spectroscopic_truth/hsc_decam_transformation/hsc_transform_polynomial.ipynb
 tmp = np.load('/global/u2/r/rongpu/notebooks/imaging_mc/spectroscopic_truth/hsc_decam_transformation/hsc_transform.npz')
 coeffs_gr, powers_arr_gr, coeffs_rz, powers_arr_rz = tmp['arr_0'], tmp['arr_1'], tmp['arr_2'], tmp['arr_3']
 hsc['g-r_decam'] = poly_val_nd(X, coeffs_gr, powers_arr_gr)
