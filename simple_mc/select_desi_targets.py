@@ -92,7 +92,8 @@ def select_elg(cat):
     zmag = 22.5 - 2.5 * np.log10((cat['FLUX_Z'] / cat['MW_TRANSMISSION_Z']).clip(1e-7))
     gfibermag = 22.5 - 2.5 * np.log10((cat['FIBERFLUX_G'] / cat['MW_TRANSMISSION_G']).clip(1e-7))
 
-    mask_elglop = np.full(len(cat), True)
+    # mask_elglop = np.full(len(cat), True)
+    mask_elglop = mask_quality.copy()
 
     mask_elglop &= gmag > 20                       # bright cut.
     mask_elglop &= rmag - zmag > 0.15                  # blue cut.
