@@ -14,6 +14,7 @@ cat['decam_id'] = np.arange(len(cat))
 print(len(cat))
 
 cat1 = Table(fitsio.read('/global/cfs/cdirs/cosmo/work/legacysurvey/dr10-deep/cosmos/catalogs/cosmos_apflux_blobresid.fits'))
+cat1.remove_column('n_sources_all')
 cat = hstack([cat, cat1])
 print(len(cat))
 
